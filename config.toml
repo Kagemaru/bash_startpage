@@ -1,0 +1,8 @@
+[settings]
+theme = "mocha"
+
+[[sites]]
+name = "STZH Dev"
+url = "https://mitwirken.pitc-decidim-stzh-dev.ocp.cloudscale.puzzle.ch"
+shortcuts = ["stzh-dev"]
+tags = ["decidim", "zürich"]
