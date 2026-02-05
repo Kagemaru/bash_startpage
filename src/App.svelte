@@ -12,8 +12,6 @@
   let history = [];
   let historyIndex = -1;
   let currentTheme = 'tokyo';
-  
-  // Selection index for the popup
   let selectedIndex = 0;
 
   const availableCommands = ['add', 'del', 'tag', 'theme', 'export', 'save', 'help', 'clear history'];
@@ -47,7 +45,6 @@
     } else {
       suggestions = [];
     }
-    // Reset selection when suggestions change
     selectedIndex = 0;
   }
 
@@ -61,7 +58,6 @@
   }
 
   function handleKeydown(event) {
-    // Navigate Popup with Arrow keys if it's open
     if (suggestions.length > 0) {
       if (event.key === 'ArrowUp') {
         event.preventDefault();
@@ -78,15 +74,11 @@
     if (event.key === 'Tab' && suggestions.length > 0) {
       event.preventDefault();
       const parts = query.split(' ');
-      if (parts.length === 1) {
-        query = ':' + suggestions[selectedIndex] + ' ';
-      } else {
-        query = parts[0] + ' ' + suggestions[selectedIndex];
-      }
+      if (parts.length === 1) query = ':' + suggestions[selectedIndex] + ' ';
+      else query = parts[0] + ' ' + suggestions[selectedIndex];
       return;
     }
 
-    // Standard History (only if popup is closed)
     if (suggestions.length === 0 && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
       event.preventDefault();
       if (event.key === 'ArrowUp' && historyIndex < history.length - 1) historyIndex++;
@@ -144,8 +136,8 @@
 <main class="theme-{currentTheme}">
   <div class="terminal">
     <div class="header">
-      <div class="comment"># Svelte Launcher v3.2</div>
-      <div class="comment"># Firefox Compatibility Fix | ↑/↓ to Select Popup</div>
+      <div class="comment"># Svelte Launcher v3.3</div>
+      <div class="comment"># Critical Popup Fix for Firefox | Command Mode: :</div>
     </div>
 
     <div class="output-area">
@@ -175,7 +167,7 @@
       {/if}
     </div>
 
-    <div class="input-line">
+    <div class="input-container-wrapper">
       {#if suggestions.length > 0}
         <div class="autocomplete-popup">
           {#each suggestions as sug, i}
@@ -186,97 +178,68 @@
         </div>
       {/if}
 
-      <span class="prompt">❯</span>
-      <div class="input-wrapper">
-        <input 
-          bind:value={query} 
-          on:keydown={handleKeydown} 
-          placeholder="Search or :command..." 
-          autofocus 
-          spellcheck="false" 
-        />
+      <div class="input-line">
+        <span class="prompt">❯</span>
+        <div class="input-wrapper">
+          <input 
+            bind:value={query} 
+            on:keydown={handleKeydown} 
+            placeholder="Search or :command..." 
+            autofocus 
+            spellcheck="false" 
+          />
+        </div>
       </div>
     </div>
   </div>
 </main>
 
 <style>
-  /* Tokyo Night, Matrix, and Light variables */
   .theme-tokyo { --bg: #1a1b26; --term: #16161e; --text: #a9b1d6; --primary: #bb9af7; --secondary: #73daca; --accent: #f7768e; --input-bg: #24283b; --dim: #414868; }
   .theme-matrix { --bg: #000000; --term: #050505; --text: #00ff41; --primary: #008f11; --secondary: #00ff41; --accent: #ffffff; --input-bg: #0d0d0d; --dim: #003b00; }
   .theme-light { --bg: #f0f0f0; --term: #ffffff; --text: #333333; --primary: #005fcc; --secondary: #2e7d32; --accent: #d32f2f; --input-bg: #e0e0e0; --dim: #999999; }
 
   :global(body) { 
-    background-color: var(--bg); 
-    color: var(--text); 
-    font-family: 'Fira Code', monospace; 
-    margin: 0; 
-    padding: 2rem; 
-    display: flex; 
-    justify-content: center;
-    min-height: 100vh;
+    background-color: var(--bg); color: var(--text); font-family: 'Fira Code', monospace; 
+    margin: 0; padding: 2rem; display: flex; justify-content: center; min-height: 100vh;
   }
 
   .terminal { 
-    width: 100%; 
-    max-width: 1100px; 
-    background: var(--term); 
-    padding: 2rem; 
-    border-radius: 8px; 
-    border: 1px solid var(--dim); 
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
-    height: fit-content;
+    width: 100%; max-width: 1100px; background: var(--term); padding: 2rem; 
+    border-radius: 8px; border: 1px solid var(--dim); box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    display: flex; flex-direction: column;
   }
   
   .output-area { min-height: 300px; max-height: 500px; overflow-y: auto; margin-bottom: 1.5rem; }
-  .row-container:hover { background: var(--input-bg); border-radius: 4px; }
-  .row { display: flex; gap: 1rem; padding: 0.6rem; text-decoration: none; align-items: center; }
-  .name { color: var(--secondary); min-width: 140px; font-weight: 600; }
-  .url { color: var(--dim); font-size: 0.8rem; flex-grow: 1; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  
+  .input-container-wrapper { position: relative; width: 100%; }
 
-  /* FIX FOR FIREFOX: Ensure input-line is relative and allows absolute children to overflow */
   .input-line { 
-    display: flex; 
-    align-items: center; 
-    gap: 0.75rem; 
-    background: var(--input-bg); 
-    padding: 0.8rem 1.2rem; 
-    border-radius: 4px; 
-    position: relative; 
-    overflow: visible; 
+    display: flex; align-items: center; gap: 0.75rem; background: var(--input-bg); 
+    padding: 0.8rem 1.2rem; border-radius: 4px; z-index: 5; position: relative;
   }
-
-  .input-wrapper { flex-grow: 1; }
-  input { background: transparent; border: none; color: var(--text); font-family: inherit; font-size: 1.1rem; outline: none; width: 100%; }
 
   .autocomplete-popup {
-    position: absolute;
-    bottom: 110%; /* Lifted slightly more for visibility */
-    left: 0;
-    width: 220px;
-    background: var(--term);
-    border: 1px solid var(--primary);
-    border-radius: 4px;
-    box-shadow: 0 -10px 20px rgba(0,0,0,0.4);
-    z-index: 9999;
+    position: absolute; bottom: 100%; left: 0; width: 220px;
+    background: var(--term); border: 1px solid var(--primary); border-radius: 4px;
+    box-shadow: 0 -10px 20px rgba(0,0,0,0.5); z-index: 100;
+    margin-bottom: 5px; /* Tiny gap from input */
   }
 
-  .suggestion-item {
-    padding: 10px 14px;
-    font-size: 0.9rem;
-    color: var(--text);
-    border-bottom: 1px solid var(--dim);
-  }
-  .suggestion-item:last-child { border-bottom: none; }
-  .suggestion-item.selected { 
-    background: var(--primary); 
-    color: var(--term); 
-    font-weight: bold;
-  }
+  .suggestion-item { padding: 10px 14px; font-size: 0.9rem; border-bottom: 1px solid var(--dim); }
+  .suggestion-item.selected { background: var(--primary); color: var(--term); font-weight: bold; }
 
+  /* Standard row styles */
+  .row-container:hover { background: var(--input-bg); border-radius: 4px; }
+  .row { display: flex; gap: 1rem; padding: 0.6rem; text-decoration: none; align-items: center; color: inherit; }
+  .name { color: var(--secondary); min-width: 140px; font-weight: 600; }
+  .url { color: var(--dim); font-size: 0.8rem; flex-grow: 1; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .input-wrapper { flex-grow: 1; }
+  input { background: transparent; border: none; color: var(--text); font-family: inherit; font-size: 1.1rem; outline: none; width: 100%; }
   .prompt { color: var(--accent); font-weight: bold; }
-  .shortcut { color: var(--primary); font-weight: bold; font-size: 0.8rem; }
+  .shortcut { color: var(--primary); font-weight: bold; font-size: 0.8rem; margin-right: 5px; }
   .tag { color: var(--accent); font-size: 0.75rem; border: 1px solid var(--dim); padding: 1px 6px; border-radius: 4px; }
-  .help-section { padding: 1rem; border-left: 2px solid var(--accent); background: var(--bg); }
+  .help-section { padding: 1rem; border-left: 2px solid var(--accent); }
   .cmd { color: var(--primary); font-weight: bold; }
+  .favicon { width: 16px; height: 16px; border-radius: 2px; }
 </style>
