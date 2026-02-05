@@ -11,11 +11,11 @@
   let showHelp = false;
   let history = [];
   let historyIndex = -1;
-  let currentTheme = 'tokyo';
+  let currentTheme = 'mocha';
   let selectedIndex = 0;
 
   const availableCommands = ['add', 'del', 'tag', 'theme', 'export', 'save', 'help', 'clear history'];
-  const themeOptions = ['tokyo', 'matrix', 'light'];
+  const themeOptions = ['mocha', 'tokyo', 'matrix', 'light'];
 
   const getFavicon = (url) => `https://www.google.com/s2/favicons?domain=${url}&sz=32`;
 
@@ -35,16 +35,10 @@
     const q = query.toLowerCase();
     if (q.startsWith(':')) {
       const parts = q.substring(1).split(' ');
-      if (parts.length === 1) {
-        suggestions = availableCommands.filter(c => c.startsWith(parts[0]));
-      } else if (parts[0] === 'theme' && parts.length === 2) {
-        suggestions = themeOptions.filter(t => t.startsWith(parts[1]));
-      } else {
-        suggestions = [];
-      }
-    } else {
-      suggestions = [];
-    }
+      if (parts.length === 1) suggestions = availableCommands.filter(c => c.startsWith(parts[0]));
+      else if (parts[0] === 'theme' && parts.length === 2) suggestions = themeOptions.filter(t => t.startsWith(parts[1]));
+      else suggestions = [];
+    } else suggestions = [];
     selectedIndex = 0;
   }
 
@@ -99,25 +93,22 @@
         if (cmd === 'help' || cmd === '?') { showHelp = !showHelp; query = ''; return; }
         showHelp = false;
         if (cmd === 'export' || cmd === 'save') { downloadTOML(); query = ''; return; }
+        if (cmd === 'theme' && themeOptions.includes(parts[1])) { currentTheme = parts[1]; query = ''; return; }
         if (cmd === 'add' && parts.length >= 3) {
           sites = [...sites, { name: parts[1], url: parts[2].startsWith('http') ? parts[2] : `https://${parts[2]}`, shortcuts: parts[3] ? [parts[3]] : [], tags: [] }];
           query = ''; return;
         }
         if (cmd === 'del' && parts.length >= 2) {
-          const id = parts[1].toLowerCase();
-          sites = sites.filter(s => s.name.toLowerCase() !== id && !s.shortcuts.includes(id));
-          query = ''; return;
+            const id = parts[1].toLowerCase();
+            sites = sites.filter(s => s.name.toLowerCase() !== id && !s.shortcuts.includes(id));
+            query = ''; return;
         }
         if (cmd === 'tag' && parts.length >= 3) {
-          const id = parts[1].toLowerCase();
-          const newTag = parts[2].toLowerCase();
-          sites = sites.map(s => (s.name.toLowerCase() === id || s.shortcuts.includes(id)) ? { ...s, tags: Array.from(new Set([...s.tags, newTag])) } : s);
-          query = ''; return;
+            const id = parts[1].toLowerCase();
+            const newTag = parts[2].toLowerCase();
+            sites = sites.map(s => (s.name.toLowerCase() === id || s.shortcuts.includes(id)) ? { ...s, tags: Array.from(new Set([...s.tags, newTag])) } : s);
+            query = ''; return;
         }
-        if (cmd === 'theme' && themeOptions.includes(parts[1])) {
-          currentTheme = parts[1]; query = ''; return;
-        }
-        if (trimmed === ':clear history') { history = []; query = ''; return; }
         query = ''; return;
       }
 
@@ -134,10 +125,10 @@
 </script>
 
 <main class="theme-{currentTheme}">
-  <div class="terminal">
+  <div class="terminal glass">
     <div class="header">
-      <div class="comment"># Svelte Launcher v3.3</div>
-      <div class="comment"># Critical Popup Fix for Firefox | Command Mode: :</div>
+        <div class="comment"># Svelte Launcher v4.2</div>
+        <div class="comment"># Enhanced Legibility | {currentTheme} theme</div>
     </div>
 
     <div class="output-area">
@@ -169,25 +160,16 @@
 
     <div class="input-container-wrapper">
       {#if suggestions.length > 0}
-        <div class="autocomplete-popup">
+        <div class="autocomplete-popup glass">
           {#each suggestions as sug, i}
-            <div class="suggestion-item" class:selected={i === selectedIndex}>
-              {sug}
-            </div>
+            <div class="suggestion-item" class:selected={i === selectedIndex}>{sug}</div>
           {/each}
         </div>
       {/if}
-
       <div class="input-line">
         <span class="prompt">❯</span>
         <div class="input-wrapper">
-          <input 
-            bind:value={query} 
-            on:keydown={handleKeydown} 
-            placeholder="Search or :command..." 
-            autofocus 
-            spellcheck="false" 
-          />
+          <input bind:value={query} on:keydown={handleKeydown} placeholder="Type :help or search..." autofocus spellcheck="false" />
         </div>
       </div>
     </div>
@@ -195,51 +177,117 @@
 </main>
 
 <style>
-  .theme-tokyo { --bg: #1a1b26; --term: #16161e; --text: #a9b1d6; --primary: #bb9af7; --secondary: #73daca; --accent: #f7768e; --input-bg: #24283b; --dim: #414868; }
-  .theme-matrix { --bg: #000000; --term: #050505; --text: #00ff41; --primary: #008f11; --secondary: #00ff41; --accent: #ffffff; --input-bg: #0d0d0d; --dim: #003b00; }
-  .theme-light { --bg: #f0f0f0; --term: #ffffff; --text: #333333; --primary: #005fcc; --secondary: #2e7d32; --accent: #d32f2f; --input-bg: #e0e0e0; --dim: #999999; }
+  /* --- THEME DEFINITIONS WITH HIGHER CONTRAST --- */
+  .theme-mocha {
+    --bg-img: linear-gradient(135deg, #1e1e2e 0%, #11111b 100%);
+    --term-rgb: 24, 24, 37;
+    --text: #ffffff; /* Brightened for glass */
+    --primary: #cba6f7; --secondary: #94e2d5; --accent: #f38ba8; --input-bg: rgba(49, 50, 68, 0.9); 
+    --dim: #bac2de; /* Much lighter than previous for visibility */
+    --glow: rgba(203, 166, 247, 0.2);
+  }
+  .theme-tokyo {
+    --bg-img: linear-gradient(135deg, #1a1b26 0%, #16161e 100%);
+    --term-rgb: 22, 22, 30;
+    --text: #ffffff; --primary: #bb9af7; --secondary: #73daca; --accent: #f7768e; --input-bg: rgba(36, 40, 59, 0.9); 
+    --dim: #a9b1d6; --glow: rgba(187, 154, 247, 0.2);
+  }
+  .theme-matrix {
+    --bg-img: #000;
+    --term-rgb: 5, 5, 5;
+    --text: #00ff41; --primary: #00ff41; --secondary: #00ff41; --accent: #fff; --input-bg: rgba(0, 0, 0, 0.9); 
+    --dim: #008f11; --glow: rgba(0, 255, 65, 0.2);
+  }
+  .theme-light {
+    --bg-img: linear-gradient(135deg, #eff1f5 0%, #dce0e8 100%);
+    --term-rgb: 230, 233, 239;
+    --text: #4c4f69; --primary: #7287fd; --secondary: #179287; --accent: #d20f39; --input-bg: rgba(255, 255, 255, 0.8); 
+    --dim: #6c6f85; --glow: transparent;
+  }
 
   :global(body) { 
-    background-color: var(--bg); color: var(--text); font-family: 'Fira Code', monospace; 
-    margin: 0; padding: 2rem; display: flex; justify-content: center; min-height: 100vh;
+    background: var(--bg-img); color: var(--text); font-family: 'Fira Code', monospace;
+    margin: 0; padding: 0; display: flex; align-items: center; justify-content: center; min-height: 100vh;
+  }
+
+  /* Glassmorphism Refined for Contrast */
+  .glass {
+    background: rgba(var(--term-rgb), 0.85) !important; /* Slightly more opaque */
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
   }
 
   .terminal { 
-    width: 100%; max-width: 1100px; background: var(--term); padding: 2rem; 
-    border-radius: 8px; border: 1px solid var(--dim); box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    width: 650px; 
+    max-height: 80vh; 
+    padding: 1.5rem; border-radius: 16px; 
+    border: 1px solid rgba(255, 255, 255, 0.2); 
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
     display: flex; flex-direction: column;
   }
   
-  .output-area { min-height: 300px; max-height: 500px; overflow-y: auto; margin-bottom: 1.5rem; }
-  
-  .input-container-wrapper { position: relative; width: 100%; }
+  .header { margin-bottom: 1rem; border-bottom: 1px solid var(--dim); padding-bottom: 0.5rem; }
+  .comment { color: var(--dim); font-size: 0.85rem; font-style: italic; font-weight: 500; }
 
+  .output-area { flex-grow: 1; overflow-y: auto; margin-bottom: 1rem; }
+  
+  .row-container:hover { background: var(--input-bg); border-radius: 8px; }
+  .row { display: flex; gap: 0.8rem; padding: 0.6rem; text-decoration: none; align-items: center; color: inherit; }
+  
+  .name { 
+    color: var(--secondary); 
+    font-weight: 700; /* Bolder text */
+    text-shadow: 0 0 10px var(--glow);
+    flex-shrink: 0; width: 120px; 
+  }
+
+  .url { 
+    color: var(--dim); 
+    font-size: 0.75rem; 
+    font-weight: 500;
+    flex-grow: 1; text-align: right; 
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; 
+  }
+
+  .input-container-wrapper { position: relative; }
   .input-line { 
-    display: flex; align-items: center; gap: 0.75rem; background: var(--input-bg); 
-    padding: 0.8rem 1.2rem; border-radius: 4px; z-index: 5; position: relative;
+    display: flex; align-items: center; gap: 0.75rem; 
+    background: var(--input-bg); padding: 0.8rem 1rem; 
+    border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); 
+  }
+  
+  input { 
+    background: transparent; border: none; color: var(--text); 
+    font-family: inherit; font-size: 1rem; font-weight: 600; /* Bolder input */
+    outline: none; width: 100%; 
   }
 
   .autocomplete-popup {
-    position: absolute; bottom: 100%; left: 0; width: 220px;
-    background: var(--term); border: 1px solid var(--primary); border-radius: 4px;
-    box-shadow: 0 -10px 20px rgba(0,0,0,0.5); z-index: 100;
-    margin-bottom: 5px; /* Tiny gap from input */
+    position: absolute; bottom: 120%; left: 0; width: 220px;
+    border: 1px solid var(--primary); border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4); z-index: 100;
+  }
+  .suggestion-item { padding: 10px 14px; font-size: 0.85rem; font-weight: 600; border-bottom: 1px solid var(--dim); }
+  .suggestion-item.selected { background: var(--primary); color: #1e1e2e; }
+
+  .prompt { color: var(--accent); font-weight: 800; }
+  .shortcut { 
+    color: var(--primary); 
+    font-weight: 800; 
+    font-size: 0.8rem; 
+    min-width: 45px;
+    text-shadow: 0 0 8px var(--glow);
   }
 
-  .suggestion-item { padding: 10px 14px; font-size: 0.9rem; border-bottom: 1px solid var(--dim); }
-  .suggestion-item.selected { background: var(--primary); color: var(--term); font-weight: bold; }
+  .tag { 
+    color: var(--accent); 
+    font-size: 0.7rem; 
+    font-weight: 700;
+    border: 1px solid var(--accent); 
+    padding: 2px 6px; border-radius: 5px; 
+    background: rgba(var(--term-rgb), 0.5); 
+  }
 
-  /* Standard row styles */
-  .row-container:hover { background: var(--input-bg); border-radius: 4px; }
-  .row { display: flex; gap: 1rem; padding: 0.6rem; text-decoration: none; align-items: center; color: inherit; }
-  .name { color: var(--secondary); min-width: 140px; font-weight: 600; }
-  .url { color: var(--dim); font-size: 0.8rem; flex-grow: 1; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .input-wrapper { flex-grow: 1; }
-  input { background: transparent; border: none; color: var(--text); font-family: inherit; font-size: 1.1rem; outline: none; width: 100%; }
-  .prompt { color: var(--accent); font-weight: bold; }
-  .shortcut { color: var(--primary); font-weight: bold; font-size: 0.8rem; margin-right: 5px; }
-  .tag { color: var(--accent); font-size: 0.75rem; border: 1px solid var(--dim); padding: 1px 6px; border-radius: 4px; }
-  .help-section { padding: 1rem; border-left: 2px solid var(--accent); }
-  .cmd { color: var(--primary); font-weight: bold; }
-  .favicon { width: 16px; height: 16px; border-radius: 2px; }
+  .favicon { width: 18px; height: 18px; border-radius: 4px; filter: saturate(1.2); }
+  .cmd { color: var(--primary); font-weight: 800; }
 </style>
