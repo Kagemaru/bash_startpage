@@ -1,5 +1,7 @@
 [settings]
 theme = "mocha"
+timezone = "Europe/Zurich"
+offset = 1
 
 [[sites]]
 name = "STZH Dev"
