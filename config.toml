@@ -5,4 +5,16 @@ theme = "mocha"
 name = "STZH Dev"
 url = "https://mitwirken.pitc-decidim-stzh-dev.ocp.cloudscale.puzzle.ch"
 shortcuts = ["stzh-dev"]
-tags = ["decidim", "zürich"]
+tags = ["decidim", "zürich", "dev"]
+
+[[sites]]
+name = "STZH Int"
+url = "https://mitwirken.integ.stadt-zuerich.ch"
+shortcuts = [ "stzh-int" ]
+tags = [ "decidim", "zürich", "int"]
+
+[[sites]]
+name = "STZH Prod"
+url = "https://mitwirken.integ.stadt-zuerich.ch"
+shortcuts = [ "stzh-prod" ]
+tags = [ "decidim", "zürich", "prod"]
