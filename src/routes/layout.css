@@ -1,3 +1,33 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/forms';
 @plugin '@tailwindcss/typography';
+
+@theme {
+  /* This ensures Tailwind knows these utilities exist */
+  --color-matrix-green: #00ff41;
+}
+
+/* Define your themes as standard CSS classes */
+.theme-mocha {
+  --bg-color: #1e1e2e;
+  --text-primary: #cba6f7;
+  --text-secondary: #94e2d5;
+}
+
+.theme-matrix {
+  --bg-color: #000000;
+  --text-primary: #00ff41;
+  --text-secondary: #00ff41;
+}
+
+.theme-tokyo {
+  --bg-color: #1a1b26;
+  --text-primary: #bb9af7;
+  --text-secondary: #73daca;
+}
+
+/* Apply these variables to your elements */
+.terminal {
+  background-color: var(--bg-color);
+  color: var(--text-secondary);
+}

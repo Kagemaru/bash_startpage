@@ -1,16 +1,35 @@
+<!-- vim: set ts=2 sw=2: -->
+
 <script lang="ts">
-	import { onMount, untrack } from 'svelte';
-	import { stringify } from 'smol-toml';
+	import { untrack } from 'svelte';
 	import { fade } from 'svelte/transition';
+	import SiteRow from '$lib/components/SiteRow.svelte';
+	import Clock from '$lib/components/Clock.svelte';
+	import Weather from '$lib/components/Weather.svelte';
+	import Suggestions from '$lib/components/Suggestions.svelte';
+	import { processCommand, availableCommands, themeOptions } from '$lib/commands';
+	import { stringify } from 'smol-toml';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
-
 	const buildData = $derived(data.buildData);
 
+	// --- STATE MANAGEMENT ---
 	let sites = $state<any[]>([]);
 	let currentTheme = $state('mocha');
+	let query = $state('');
+	let selectedIndex = $state(0);
+	let showHelp = $state(false);
+	let showChangelog = $state(false);
+	let tooltip = $state({ visible: false, text: '', x: 0, y: 0 });
+	let inputRef: HTMLInputElement;
 
+	// Tooltip Helper
+	const handleHover = (visible: boolean, text = '', x = 0, y = 0) => {
+		tooltip = { visible, text, x, y: y + 20 };
+	};
+
+	// Sync config to state using untrack to prevent infinite loops
 	$effect(() => {
 		if (data.buildData) {
 			untrack(() => {
@@ -20,18 +39,33 @@
 		}
 	});
 
-	// --- REACIVE STATE (Svelte 5 Runes) ---
+	// --- CONSTANTS ---
+	const changelog = [
+		{ v: '6.4', f: 'Manual UTC Offset via config.toml (Fixed persistent 1h offset).' },
+		{ v: '6.3', f: 'Manual Timezone override via [settings] config key.' },
+		{ v: '6.2', f: 'Attempted OS TimeZone resolution fix for clock offset.' },
+		{ v: '6.1', f: 'Hard-sync clock to system local time via locale array.' },
+		{ v: '6.0', f: 'Switched to 24h dashboard clock for technical look.' },
+		{ v: '5.9', f: 'Weather caching (15m) for zero-latency dashboard load.' },
+		{ v: '5.8', f: "Fixed :add/:del logic & expanded input field to 100% width." },
+		{ v: '5.7', f: 'Dashboard: Added real-time clock & IP-based weather fetch.' },
+		{ v: '5.6', f: "UX: Internal link launching (_self) & focused clickable input." },
+		{ v: '5.5', f: 'Arch: Static Build-Time Injection master config system.' },
+		{ v: '5.0', f: 'IO: Switched to config.toml with settings/sites headers.' },
+		{ v: '4.5', f: "UI: Interactive URL tooltips on hover & mouse tracking." },
+		{ v: '4.4', f: "Style: Removed URL text for 'Zen' look & refined tag spacing." },
+		{ v: '4.2', f: 'A11y: Contrast & legibility overhaul for Glassmorphism.' },
+		{ v: '4.1', f: 'Visuals: Glassmorphism (Blur) & centered palette layout.' },
+		{ v: '4.0', f: 'Theme: Catppuccin Mocha theme & palette-aware variables.' },
+		{ v: '3.3', f: 'Compat: Firefox stacking context & popup rendering fixes.' },
+		{ v: '3.1', f: 'CLI: Contextual command popups & Tab-to-complete logic.' },
+		{ v: '2.8', f: "Logic: Vim-style ':' prefix for administrative actions." },
+		{ v: '2.6', f: 'Search: Strict hierarchy (#tags, !keys, name/url).' },
+		{ v: '2.2', f: 'Assets: Favicon auto-fetching & multiple alias support.' },
+		{ v: '1.0', f: 'Init: Svelte TOML Launcher core release.' }
+	];
 
-	let query = $state('');
-	let time = $state('');
-	let selectedIndex = $state(0);
-	let showHelp = $state(false);
-	let showChangelog = $state(false);
-
-	const availableCommands = ['add', 'del', 'theme', 'export', 'help', 'changelog'];
-	const themeOptions = ['mocha', 'tokyo', 'matrix', 'light'];
-
-	// --- DERIVED STATE ---
+	// --- DERIVED LOGIC ---
 	let filteredSites = $derived(
 		sites.filter((site) => {
 			const q = query.toLowerCase().trim();
@@ -39,9 +73,9 @@
 			const terms = q.split(/\s+/);
 			return terms.every((term) => {
 				if (term.startsWith('#'))
-					return site.tags.some((t) => t.toLowerCase().includes(term.substring(1)));
+					return site.tags.some((t: string) => t.toLowerCase().includes(term.substring(1)));
 				if (term.startsWith('!'))
-					return site.shortcuts.some((s) => s.toLowerCase().includes(term.substring(1)));
+					return site.shortcuts.some((s: string) => s.toLowerCase().includes(term.substring(1)));
 				return site.name.toLowerCase().includes(term) || site.url.toLowerCase().includes(term);
 			});
 		})
@@ -57,32 +91,18 @@
 		return [];
 	});
 
-	// --- ACTIONS & HANDLERS ---
-	function focusOnInit(node: HTMLInputElement) {
-		node.focus();
-	}
-
+	// --- COMMAND HANDLER ---
 	function handleCommand(input: string) {
-		const trimmed = input.trim();
-		const parts = trimmed.substring(1).split(/\s+/);
-		const cmd = parts[0].toLowerCase();
+		const result = processCommand(input, sites, currentTheme);
+		
+		// Update local state from modular command result
+		sites = result.updatedSites;
+		currentTheme = result.updatedTheme;
+		showHelp = result.view.help;
+		showChangelog = result.view.changelog;
 
-		showHelp = cmd === 'help';
-		showChangelog = cmd === 'changelog';
-
-		if (cmd === 'theme' && themeOptions.includes(parts[1])) {
-			currentTheme = parts[1];
-		} else if (cmd === 'add' && parts.length >= 3) {
-			const url = parts[2].includes('.')
-				? parts[2].startsWith('http')
-					? parts[2]
-					: `https://${parts[2]}`
-				: parts[2];
-			sites = [...sites, { name: parts[1], url, shortcuts: parts[3] ? [parts[3]] : [], tags: [] }];
-		} else if (cmd === 'del' && parts.length >= 2) {
-			const id = parts[1].toLowerCase();
-			sites = sites.filter((s) => s.name.toLowerCase() !== id && !s.shortcuts.includes(id));
-		} else if (cmd === 'export') {
+		// Handle export separately for browser API access
+		if (input.startsWith(':export')) {
 			const config = {
 				settings: { theme: currentTheme, offset: buildData.settings?.offset || 0 },
 				sites: $state.snapshot(sites)
@@ -112,8 +132,7 @@
 			if (e.key === 'Tab') {
 				e.preventDefault();
 				const parts = query.split(' ');
-				query =
-					parts.length === 1
+				query = parts.length === 1
 						? `:${suggestions[selectedIndex]} `
 						: `${parts[0]} ${suggestions[selectedIndex]}`;
 				return;
@@ -135,145 +154,89 @@
 		}
 	}
 
-	// 1. Weather State
-	let weather = $state({ temp: '--', desc: 'Loading...' });
-	const CACHE_KEY = 'svelte_launcher_weather';
-
-	// 2. Weather Fetching Logic
-	async function fetchWeather() {
-		// Check Cache (15m/900000ms)
-		const cached = localStorage.getItem(CACHE_KEY);
-		if (cached) {
-			const { data, timestamp } = JSON.parse(cached);
-			if (Date.now() - timestamp < 900000) {
-				weather = data;
-				return;
-			}
-		}
-
-		try {
-			const res = await fetch('https://wttr.in/?format=j1');
-			const data = await res.json();
-			const current = data.current_condition[0];
-
-			const newWeather = {
-				temp: current.temp_C + '°C',
-				desc: current.weatherDesc[0].value
-			};
-
-			weather = newWeather;
-			// Save to cache
-			localStorage.setItem(
-				CACHE_KEY,
-				JSON.stringify({
-					data: newWeather,
-					timestamp: Date.now()
-				})
-			);
-		} catch (e) {
-			if (weather.temp === '--') {
-				weather = { temp: '!!', desc: 'Weather Error' };
-			}
-		}
-	}
-
-	onMount(() => {
-		// Clock Logic
-		const updateTime = () => {
-			const now = new Date();
-			// Use the offset from your config
-			const offset = buildData.settings?.offset || 0;
-			const localDate = new Date(now.getTime() + offset * 3600000);
-
-			time =
-				localDate.getUTCHours().toString().padStart(2, '0') +
-				':' +
-				localDate.getUTCMinutes().toString().padStart(2, '0') +
-				':' +
-				localDate.getUTCSeconds().toString().padStart(2, '0');
-		};
-
-		updateTime();
-		fetchWeather(); // Fetch weather on load
-
-		const timer = setInterval(updateTime, 1000);
-		return () => clearInterval(timer);
-	});
+	const themeClasses = $derived(
+		{
+			mocha: 'bg-[#1e1e2e] text-white font-sans',
+			tokyo: 'bg-[#1a1b26] text-white font-sans',
+			matrix: 'bg-black text-[#00ff41] font-mono',
+			light: 'bg-slate-100 text-slate-900 font-sans'
+		}[currentTheme] || 'bg-[#1e1e2e] text-white'
+	);
 </script>
 
-<main
-	class="theme-{currentTheme} flex min-h-screen items-center justify-center font-mono transition-colors duration-500
-  {currentTheme === 'matrix' ? 'bg-black text-[#00ff41]' : 'bg-[#1e1e2e] text-white'}"
->
+<main class="theme-{currentTheme} flex min-h-screen items-center justify-center transition-colors duration-500 {themeClasses}">
 	<div class="relative w-full max-w-2xl px-4">
-		{#if suggestions.length > 0}
-			<div
-				class="absolute bottom-full left-4 z-50 mb-2 w-48 overflow-hidden rounded-lg border border-purple-500/50 bg-black/80 backdrop-blur-md"
-			>
-				{#each suggestions as sug, i}
-					<div
-						class="px-4 py-2 text-xs {i === selectedIndex
-							? 'bg-purple-600 text-white'
-							: 'text-gray-400'}"
-					>
-						{sug}
-					</div>
-				{/each}
-			</div>
-		{/if}
+		<Suggestions list={suggestions} {selectedIndex} />
 
-		<div
-			class="terminal rounded-2xl border border-white/10 bg-black/40 p-6 shadow-2xl backdrop-blur-xl"
-		>
+		<div class="terminal rounded-2xl border border-white/10 bg-black/40 p-6 shadow-2xl backdrop-blur-xl">
 			<div class="mb-6 flex items-center justify-between border-b border-white/10 pb-4">
 				<div class="text-[10px] tracking-widest uppercase opacity-50">
 					# Dashboard | {currentTheme}
 				</div>
 				<div class="flex gap-4 text-xs font-bold text-cyan-400">
-					<span>{weather.temp}</span>
-					<span class="tabular-nums">{time}</span>
+					<Weather />
+					<Clock offset={buildData.settings?.offset} />
 				</div>
 			</div>
 
 			<div class="custom-scrollbar mb-6 max-h-[50vh] space-y-1 overflow-y-auto pr-2">
-				{#each filteredSites as site}
-					<button
-						onclick={() => window.open(site.url, '_self')}
-						class="group flex w-full items-center gap-4 rounded border border-transparent p-2 transition-all hover:border-white/10 hover:bg-white/5"
-					>
-						<span class="w-16 text-left text-xs font-bold text-purple-400">
-							{site.shortcuts[0] ? `!${site.shortcuts[0]}` : ''}
-						</span>
-						<span class="flex-grow text-left text-sm font-semibold text-emerald-400"
-							>{site.name}</span
-						>
-						<div class="flex gap-2">
-							{#each site.tags as tag}
-								<span
-									class="rounded border border-pink-500/20 px-2 py-0.5 text-[9px] font-bold text-pink-500/80"
-									>#{tag}</span
-								>
-							{/each}
+				{#if showHelp}
+					<div class="space-y-3 p-2" transition:fade>
+						<div class="border-b border-emerald-400/20 pb-1 text-xs font-bold text-emerald-400">COMMAND DOCUMENTATION</div>
+						<div class="grid grid-cols-[80px_1fr] gap-y-2 text-[11px]">
+							<span class="font-bold text-purple-400">:add</span>
+							<span class="text-gray-400">name url key?</span>
+							<span class="text-purple-400">:del</span>
+							<span class="text-gray-400">name_or_shortcut</span>
+							<span class="text-purple-400">:theme</span>
+							<span class="text-gray-400">mocha/tokyo/matrix/light</span>
 						</div>
-					</button>
-				{/each}
+					</div>
+				{:else if showChangelog}
+					<div class="space-y-2 p-2" transition:fade>
+						<div class="border-b border-emerald-400/20 pb-1 text-xs font-bold text-emerald-400">SYSTEM CHANGELOG</div>
+						{#each changelog as entry}
+							<div class="flex gap-4 border-b border-white/5 pb-1 text-[11px]">
+								<span class="w-10 font-bold text-purple-400">v{entry.v}</span>
+								<span class="text-gray-400">{entry.f}</span>
+							</div>
+						{/each}
+					</div>
+				{:else}
+					{#each filteredSites as site}
+						<SiteRow {site} onHover={handleHover} />
+					{/each}
+				{/if}
 			</div>
 
-			<div
+			<div 
 				class="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-4 focus-within:border-purple-500/50"
+				role="button"
+				tabindex="0"
+				onclick={() => inputRef.focus()}
+				onkeydown={(e) => e.key === 'Enter' && inputRef.focus()}
 			>
 				<span class="font-bold text-purple-500">❯</span>
 				<input
-					use:focusOnInit
+					bind:this={inputRef}
 					bind:value={query}
 					onkeydown={onKeyDown}
 					placeholder="Search or :command..."
 					class="w-full border-none bg-transparent text-sm outline-none placeholder:text-gray-600"
 					spellcheck="false"
+					autofocus
 				/>
 			</div>
 		</div>
 	</div>
+
+	{#if tooltip.visible}
+		<div class="pointer-events-none fixed z-[100] rounded border border-white/20 bg-black/90 px-3 py-1 text-[10px] text-white shadow-xl backdrop-blur-sm"
+			 style="left: {tooltip.x}px; top: {tooltip.y}px;"
+			 transition:fade={{ duration: 100 }}>
+			{tooltip.text}
+		</div>
+	{/if}
 </main>
 
 <style>
