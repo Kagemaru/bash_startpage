@@ -1,4 +1,4 @@
-<!-- vim: set ts=2 sw=2: -->
+<!-- vim: set ts=2 sw=2 et: -->
 
 <script lang="ts">
 	import { untrack } from 'svelte';
@@ -7,6 +7,8 @@
 	import Clock from '$lib/components/Clock.svelte';
 	import Weather from '$lib/components/Weather.svelte';
 	import Suggestions from '$lib/components/Suggestions.svelte';
+	import Changelog from '$lib/components/Changelog.svelte';
+	import CommandInput from '$lib/components/CommandInput.svelte';
 	import { processCommand, availableCommands, themeOptions } from '$lib/commands';
 	import { stringify } from 'smol-toml';
 	import type { PageData } from './$types';
@@ -22,7 +24,6 @@
 	let showHelp = $state(false);
 	let showChangelog = $state(false);
 	let tooltip = $state({ visible: false, text: '', x: 0, y: 0 });
-	let inputRef: HTMLInputElement;
 
 	// Tooltip Helper
 	const handleHover = (visible: boolean, text = '', x = 0, y = 0) => {
@@ -39,8 +40,8 @@
 		}
 	});
 
-	// --- CONSTANTS ---
-	const changelog = [
+	// --- RESTORED FULL PROJECT HISTORY ---
+	const changelogData = [
 		{ v: '6.4', f: 'Manual UTC Offset via config.toml (Fixed persistent 1h offset).' },
 		{ v: '6.3', f: 'Manual Timezone override via [settings] config key.' },
 		{ v: '6.2', f: 'Attempted OS TimeZone resolution fix for clock offset.' },
@@ -95,13 +96,11 @@
 	function handleCommand(input: string) {
 		const result = processCommand(input, sites, currentTheme);
 		
-		// Update local state from modular command result
 		sites = result.updatedSites;
 		currentTheme = result.updatedTheme;
 		showHelp = result.view.help;
 		showChangelog = result.view.changelog;
 
-		// Handle export separately for browser API access
 		if (input.startsWith(':export')) {
 			const config = {
 				settings: { theme: currentTheme, offset: buildData.settings?.offset || 0 },
@@ -156,15 +155,15 @@
 
 	const themeClasses = $derived(
 		{
-			mocha: 'bg-[#1e1e2e] text-white font-sans',
-			tokyo: 'bg-[#1a1b26] text-white font-sans',
+			mocha: 'bg-[#1e1e2e] text-white',
+			tokyo: 'bg-[#1a1b26] text-white',
 			matrix: 'bg-black text-[#00ff41] font-mono',
-			light: 'bg-slate-100 text-slate-900 font-sans'
+			light: 'bg-slate-100 text-slate-900'
 		}[currentTheme] || 'bg-[#1e1e2e] text-white'
 	);
 </script>
 
-<main class="theme-{currentTheme} flex min-h-screen items-center justify-center transition-colors duration-500 {themeClasses}">
+<main class="flex min-h-screen items-center justify-center transition-colors duration-500 {themeClasses}">
 	<div class="relative w-full max-w-2xl px-4">
 		<Suggestions list={suggestions} {selectedIndex} />
 
@@ -182,7 +181,9 @@
 			<div class="custom-scrollbar mb-6 max-h-[50vh] space-y-1 overflow-y-auto pr-2">
 				{#if showHelp}
 					<div class="space-y-3 p-2" transition:fade>
-						<div class="border-b border-emerald-400/20 pb-1 text-xs font-bold text-emerald-400">COMMAND DOCUMENTATION</div>
+						<div class="border-b border-emerald-400/20 pb-1 text-xs font-bold text-emerald-400">
+							HELP
+						</div>
 						<div class="grid grid-cols-[80px_1fr] gap-y-2 text-[11px]">
 							<span class="font-bold text-purple-400">:add</span>
 							<span class="text-gray-400">name url key?</span>
@@ -193,15 +194,7 @@
 						</div>
 					</div>
 				{:else if showChangelog}
-					<div class="space-y-2 p-2" transition:fade>
-						<div class="border-b border-emerald-400/20 pb-1 text-xs font-bold text-emerald-400">SYSTEM CHANGELOG</div>
-						{#each changelog as entry}
-							<div class="flex gap-4 border-b border-white/5 pb-1 text-[11px]">
-								<span class="w-10 font-bold text-purple-400">v{entry.v}</span>
-								<span class="text-gray-400">{entry.f}</span>
-							</div>
-						{/each}
-					</div>
+					<Changelog changelog={changelogData} />
 				{:else}
 					{#each filteredSites as site}
 						<SiteRow {site} onHover={handleHover} />
@@ -209,31 +202,16 @@
 				{/if}
 			</div>
 
-			<div 
-				class="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-4 focus-within:border-purple-500/50"
-				role="button"
-				tabindex="0"
-				onclick={() => inputRef.focus()}
-				onkeydown={(e) => e.key === 'Enter' && inputRef.focus()}
-			>
-				<span class="font-bold text-purple-500">❯</span>
-				<input
-					bind:this={inputRef}
-					bind:value={query}
-					onkeydown={onKeyDown}
-					placeholder="Search or :command..."
-					class="w-full border-none bg-transparent text-sm outline-none placeholder:text-gray-600"
-					spellcheck="false"
-					autofocus
-				/>
-			</div>
+			<CommandInput bind:query {onKeyDown} />
 		</div>
 	</div>
 
 	{#if tooltip.visible}
-		<div class="pointer-events-none fixed z-[100] rounded border border-white/20 bg-black/90 px-3 py-1 text-[10px] text-white shadow-xl backdrop-blur-sm"
-			 style="left: {tooltip.x}px; top: {tooltip.y}px;"
-			 transition:fade={{ duration: 100 }}>
+		<div
+			class="pointer-events-none fixed z-[100] rounded border border-white/20 bg-black/90 px-3 py-1 text-[10px] text-white shadow-xl backdrop-blur-sm"
+			style="left: {tooltip.x}px; top: {tooltip.y}px;"
+			transition:fade={{ duration: 100 }}
+		>
 			{tooltip.text}
 		</div>
 	{/if}
