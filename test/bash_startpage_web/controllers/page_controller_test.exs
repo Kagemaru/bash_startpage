@@ -1,8 +1,9 @@
 defmodule BashStartpageWeb.PageControllerTest do
   use BashStartpageWeb.ConnCase
+  import Phoenix.LiveViewTest
 
-  test "GET /", %{conn: conn} do
-    conn = get(conn, ~p"/")
-    assert html_response(conn, 200) =~ "Peace of mind from prototype to production"
+  test "GET / renders the startpage live view", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/")
+    assert html =~ "search or type :command..."
   end
 end

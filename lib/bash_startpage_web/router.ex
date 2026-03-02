@@ -41,7 +41,8 @@ defmodule BashStartpageWeb.Router do
   scope "/", BashStartpageWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
+    live "/", StartpageLive
+    get "/export", ExportController, :download
     auth_routes AuthController, BashStartpage.Accounts.User, path: "/auth"
     sign_out_route AuthController
 

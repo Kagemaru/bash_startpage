@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(mix:*)",
+      "mcp__tidewave__get_logs"
+    ]
+  }
+}

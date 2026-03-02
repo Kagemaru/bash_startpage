@@ -17,6 +17,7 @@
 // To load it, simply add a second `<link>` to your `root.html.heex` file.
 // Include phoenix_html to handle method=PUT/DELETE in forms and buttons.
 import "phoenix_html";
+import { StartpageInput, StartpageTooltip } from "./startpage_hooks";
 // Establish Phoenix Socket and LiveView configuration.
 import { Socket } from "phoenix";
 import { LiveSocket } from "phoenix_live_view";
@@ -34,6 +35,8 @@ const liveSocket = new LiveSocket("/live", Socket, {
   hooks: {
     ...colocatedHooks,
     ...MishkaComponents,
+    StartpageInput,
+    StartpageTooltip,
   },
 });
 // Show progress bar on live navigation and form submits
@@ -52,6 +55,10 @@ liveSocket.connect();
 // >> liveSocket.enableLatencySim(1000)  // enabled for duration of browser session
 // >> liveSocket.disableLatencySim()
 window.liveSocket = liveSocket;
+
+window.addEventListener("phx:open_url", (e) => {
+  window.location.href = e.detail.url;
+});
 // The lines below enable quality of life phoenix_live_reload
 // development features:
 //

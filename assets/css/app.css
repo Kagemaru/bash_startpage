@@ -105,6 +105,92 @@
 
 /* This file is for your main application CSS */
 
+/* Startpage themes */
+[data-sp-theme="mocha"] {
+  --sp-bg: #1e1e2e;
+  --sp-text-primary: #cba6f7;
+  --sp-text-secondary: #94e2d5;
+  --sp-accent: #cba6f7;
+  --sp-site-name: #94e2d5;
+  --sp-tag-color: #f38ba8;
+  --sp-shortcut-color: #cba6f7;
+  --sp-muted: rgba(255,255,255,0.4);
+  --sp-card-bg: rgba(0,0,0,0.4);
+  --sp-card-border: rgba(255,255,255,0.1);
+  --sp-font: ui-sans-serif, system-ui, sans-serif;
+}
+
+[data-sp-theme="tokyo"] {
+  --sp-bg: #1a1b26;
+  --sp-text-primary: #bb9af7;
+  --sp-text-secondary: #73daca;
+  --sp-accent: #bb9af7;
+  --sp-site-name: #73daca;
+  --sp-tag-color: #f7768e;
+  --sp-shortcut-color: #bb9af7;
+  --sp-muted: rgba(255,255,255,0.4);
+  --sp-card-bg: rgba(0,0,0,0.4);
+  --sp-card-border: rgba(255,255,255,0.1);
+  --sp-font: ui-sans-serif, system-ui, sans-serif;
+}
+
+[data-sp-theme="matrix"] {
+  --sp-bg: #000000;
+  --sp-text-primary: #00ff41;
+  --sp-text-secondary: #00ff41;
+  --sp-accent: #00ff41;
+  --sp-site-name: #00ff41;
+  --sp-tag-color: #00cc33;
+  --sp-shortcut-color: #00ff41;
+  --sp-muted: rgba(0,255,65,0.5);
+  --sp-card-bg: rgba(0,0,0,0.8);
+  --sp-card-border: rgba(0,255,65,0.2);
+  --sp-font: ui-monospace, monospace;
+}
+
+[data-sp-theme="light"] {
+  --sp-bg: #f1f5f9;
+  --sp-text-primary: #1e293b;
+  --sp-text-secondary: #334155;
+  --sp-accent: #7c3aed;
+  --sp-site-name: #0f766e;
+  --sp-tag-color: #db2777;
+  --sp-shortcut-color: #7c3aed;
+  --sp-muted: rgba(0,0,0,0.4);
+  --sp-card-bg: rgba(255,255,255,0.7);
+  --sp-card-border: rgba(0,0,0,0.1);
+  --sp-font: ui-sans-serif, system-ui, sans-serif;
+}
+
+.sp-page {
+  background-color: var(--sp-bg);
+  color: var(--sp-text-secondary);
+  font-family: var(--sp-font);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.5s, color 0.5s;
+}
+
+.sp-card {
+  background: var(--sp-card-bg);
+  border: 1px solid var(--sp-card-border);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.sp-text-primary { color: var(--sp-text-primary); }
+.sp-text-secondary { color: var(--sp-text-secondary); }
+.sp-text-accent { color: var(--sp-accent); }
+.sp-text-site-name { color: var(--sp-site-name); }
+.sp-text-tag { color: var(--sp-tag-color); }
+.sp-text-shortcut { color: var(--sp-shortcut-color); }
+.sp-text-muted { color: var(--sp-muted); }
+
+.sp-scrollbar::-webkit-scrollbar { width: 4px; }
+.sp-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+
 @theme {
     --color-base-border-light: var(--base-border-light);
     --color-base-border-dark: var(--base-border-dark);

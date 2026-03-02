@@ -39,3 +39,5 @@ npm-debug.log
 *.db
 *.db-*
 
+# Ignore the old solution
+/svelte

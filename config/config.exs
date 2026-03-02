@@ -52,7 +52,7 @@ config :spark,
 config :bash_startpage,
   ecto_repos: [BashStartpage.Repo],
   generators: [timestamp_type: :utc_datetime],
-  ash_domains: [BashStartpage.Accounts]
+  ash_domains: [BashStartpage.Accounts, BashStartpage.Startpage]
 
 # Configure the endpoint
 config :bash_startpage, BashStartpageWeb.Endpoint,
