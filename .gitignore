@@ -41,3 +41,7 @@ npm-debug.log
 
 # Ignore the old solution
 /svelte
+
+# Claude Code local files
+/.claude/worktrees/
+/.claude/settings.local.json

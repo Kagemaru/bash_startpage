@@ -32,16 +32,6 @@ defmodule BashStartpageWeb.ConnCase do
   end
 
   setup tags do
-    Req.Test.set_req_test_to_shared()
-
-    Req.Test.stub(:weather, fn conn ->
-      Req.Test.json(conn, %{
-        "current_condition" => [
-          %{"temp_C" => "20", "weatherDesc" => [%{"value" => "Sunny"}]}
-        ]
-      })
-    end)
-
     BashStartpage.DataCase.setup_sandbox(tags)
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end

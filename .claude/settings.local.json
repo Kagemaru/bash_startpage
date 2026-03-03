@@ -3,7 +3,14 @@
     "allow": [
       "Bash(find:*)",
       "Bash(mix:*)",
-      "mcp__tidewave__get_logs"
+      "mcp__tidewave__get_logs",
+      "mcp__tidewave__search_package_docs",
+      "mcp__tidewave__get_docs",
+      "Bash(ls:*)",
+      "Bash(/code/priv/bash_startpage/test/bash_startpage_web/components/input_field_test.exs:*)",
+      "Bash(/code/priv/bash_startpage/test/bash_startpage_web/components/checkbox_card_test.exs:*)",
+      "mcp__tidewave__project_eval",
+      "Bash(git:*)"
     ]
   }
 }

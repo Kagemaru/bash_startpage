@@ -1,5 +1,5 @@
 defmodule BashStartpageWeb.ExportControllerTest do
-  use BashStartpageWeb.ConnCase
+  use BashStartpageWeb.ConnCase, async: true
 
   alias BashStartpage.Startpage.{Site, Settings}
 

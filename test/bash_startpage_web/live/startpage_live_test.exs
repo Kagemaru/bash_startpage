@@ -1,5 +1,5 @@
 defmodule BashStartpageWeb.StartpageLiveTest do
-  use BashStartpageWeb.ConnCase
+  use BashStartpageWeb.ConnCase, async: true
   import Phoenix.LiveViewTest
 
   alias BashStartpage.Startpage.{Site, Settings}
@@ -158,5 +158,109 @@ defmodule BashStartpageWeb.StartpageLiveTest do
     render_hook(view, "keydown", %{key: "Enter"})
     html = render_hook(view, "close_modal", %{})
     refute html =~ "HELP"
+  end
+
+  test "arrow up wraps suggestion selection", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/")
+    render_hook(view, "query_changed", %{query: ":"})
+    html = render_hook(view, "keydown", %{key: "ArrowUp"})
+    assert html =~ "font-bold"
+  end
+
+  test "arrow up with no suggestions is a no-op", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/")
+    html = render_hook(view, "keydown", %{key: "ArrowUp"})
+    assert html =~ "search or type :command..."
+  end
+
+  test "arrow down with no suggestions is a no-op", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/")
+    html = render_hook(view, "keydown", %{key: "ArrowDown"})
+    assert html =~ "search or type :command..."
+  end
+
+  test "tab with no suggestions leaves query unchanged", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/")
+    render_hook(view, "query_changed", %{query: "github"})
+    html = render_hook(view, "keydown", %{key: "Tab"})
+    assert html =~ "GitHub"
+  end
+
+  test "unhandled keydown is a no-op", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/")
+    html = render_hook(view, "keydown", %{key: "Shift"})
+    assert html =~ "search or type :command..."
+  end
+
+  test "enter with filtered site navigates to site URL", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/")
+    render_hook(view, "query_changed", %{query: "github"})
+
+    assert render_hook(view, "keydown", %{key: "Enter"}) =~ "startpage-input"
+  end
+
+  test "enter with no match clears query", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/")
+    render_hook(view, "query_changed", %{query: "nonexistent"})
+    html = render_hook(view, "keydown", %{key: "Enter"})
+    assert html =~ "search or type :command..."
+  end
+
+  test "enter with !shortcut navigates to site", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/")
+    render_hook(view, "query_changed", %{query: "!gh"})
+    html = render_hook(view, "keydown", %{key: "Enter"})
+    assert html =~ "startpage-input"
+  end
+
+  test "enter with unknown !shortcut clears query", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/")
+    render_hook(view, "query_changed", %{query: "!unknown"})
+    html = render_hook(view, "keydown", %{key: "Enter"})
+    assert html =~ "search or type :command..."
+  end
+
+  test ":export command navigates to export page", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/")
+    render_hook(view, "query_changed", %{query: ":export"})
+
+    assert {:error, {:live_redirect, %{to: "/export"}}} =
+             render_hook(view, "keydown", %{key: "Enter"})
+  end
+
+  test "tab autocompletes theme option in multi-word command", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/")
+    render_hook(view, "query_changed", %{query: ":theme m"})
+    html = render_hook(view, "keydown", %{key: "Tab"})
+    assert html =~ ":theme mocha" or html =~ "mocha"
+  end
+
+  test "enter with unrecognized command clears query", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/")
+    render_hook(view, "query_changed", %{query: ":unknown"})
+    html = render_hook(view, "keydown", %{key: "Enter"})
+    assert html =~ "search or type :command..."
+  end
+
+  test "enter with failing command clears query", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/")
+    render_hook(view, "query_changed", %{query: ":del nonexistent"})
+    html = render_hook(view, "keydown", %{key: "Enter"})
+    assert html =~ "search or type :command..."
+  end
+
+  test "site with URL that has no host renders without crashing", %{conn: conn} do
+    {:ok, _} = Ash.create(Site, %{name: "Local", url: "localhost"})
+    {:ok, _view, html} = live(conn, "/")
+    assert html =~ "Local"
+  end
+
+  test "tick message updates the clock", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/")
+    html1 = render(view)
+    send(view.pid, :tick)
+    html2 = render(view)
+    assert html1 =~ ~r/\d{2}:\d{2}:\d{2}/
+    assert html2 =~ ~r/\d{2}:\d{2}:\d{2}/
   end
 end

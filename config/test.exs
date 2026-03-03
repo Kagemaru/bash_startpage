@@ -3,7 +3,7 @@ config :bash_startpage, token_signing_secret: "MkbXTRMh6209DzgglidvrD0W8JzO+kBV"
 config :bcrypt_elixir, log_rounds: 1
 config :ash, policies: [show_policy_breakdowns?: true], disable_async?: true
 
-config :bash_startpage, :weather_req_options, plug: {Req.Test, :weather}
+config :bash_startpage, :weather_req_options, plug: BashStartpage.WeatherStub
 
 # Configure your database
 #

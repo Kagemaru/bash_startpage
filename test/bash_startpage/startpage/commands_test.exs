@@ -6,6 +6,14 @@ defmodule BashStartpage.Startpage.CommandsTest do
 
   @settings %{theme: "mocha", timezone: "UTC", offset: 0}
 
+  test "available_commands/0 returns the full command list" do
+    assert Commands.available_commands() == ["add", "del", "theme", "export", "help", "changelog"]
+  end
+
+  test "theme_options/0 returns the full theme list" do
+    assert Commands.theme_options() == ["mocha", "tokyo", "matrix", "light"]
+  end
+
   describe "suggestions/1" do
     test "returns empty list for non-command input" do
       assert Commands.suggestions("hello") == []
@@ -166,6 +174,29 @@ defmodule BashStartpage.Startpage.CommandsTest do
 
     test ":theme returns error when called without theme name" do
       assert {:error, _} = Commands.process(":theme", @settings)
+    end
+
+    test ":theme returns theme action when no settings record exists" do
+      assert {:ok, %{action: :theme, theme: "tokyo"}} =
+               Commands.process(":theme tokyo", @settings)
+    end
+
+    test ":theme updates existing settings record" do
+      {:ok, _} = Ash.create(BashStartpage.Startpage.Settings, %{theme: "mocha"})
+      assert {:ok, %{action: :theme, theme: "matrix"}} =
+               Commands.process(":theme matrix", @settings)
+    end
+
+    test ":add with shortcut stores it on the site" do
+      assert {:ok, %{action: :add, site: site}} =
+               Commands.process(":add MyBlog myblog.com mb", @settings)
+
+      assert site.shortcuts == ["mb"]
+    end
+
+    test ":del deletes a site by shortcut" do
+      {:ok, _} = Ash.create(Site, %{name: "ByShortcut", url: "https://sc.com", shortcuts: ["sc"]})
+      assert {:ok, %{action: :del}} = Commands.process(":del sc", @settings)
     end
   end
 
