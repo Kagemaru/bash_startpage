@@ -10,6 +10,11 @@ defmodule BashStartpage.MixProject do
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
+      releases: [
+        bash_startpage: [
+          include_executables_for: [:unix]
+        ]
+      ],
       compilers: [:phoenix_live_view] ++ Mix.compilers(),
       listeners: [Phoenix.CodeReloader],
       consolidate_protocols: Mix.env() != :dev,

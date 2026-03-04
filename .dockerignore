@@ -1,0 +1,23 @@
+# Build artifacts
+/_build/
+/deps/
+/doc/
+
+# Assets
+/assets/node_modules/
+
+# Dialyzer
+/.dialyzer_ignore.exs
+/priv/plts/
+
+# Test coverage
+cover/
+
+# Environment / secrets
+.env
+*.secret.exs
+
+# Editor / OS files
+.DS_Store
+.git/
+.gitignore

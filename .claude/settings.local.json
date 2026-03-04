@@ -10,7 +10,13 @@
       "Bash(/code/priv/bash_startpage/test/bash_startpage_web/components/input_field_test.exs:*)",
       "Bash(/code/priv/bash_startpage/test/bash_startpage_web/components/checkbox_card_test.exs:*)",
       "mcp__tidewave__project_eval",
-      "Bash(git:*)"
+      "Bash(git:*)",
+      "Bash(docker build:*)",
+      "Bash(docker run:*)",
+      "Bash(docker:*)",
+      "Bash(epmd:*)",
+      "WebFetch(domain:elixirforum.com)",
+      "Bash(python3:*)"
     ]
   }
 }
