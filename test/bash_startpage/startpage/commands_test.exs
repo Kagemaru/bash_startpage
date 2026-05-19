@@ -7,7 +7,7 @@ defmodule BashStartpage.Startpage.CommandsTest do
   @settings %{theme: "mocha", timezone: "UTC", offset: 0}
 
   test "available_commands/0 returns the full command list" do
-    assert Commands.available_commands() == ["add", "del", "theme", "export", "help", "changelog"]
+    assert Commands.available_commands() == ["add", "del", "tag", "theme", "export", "help", "changelog"]
   end
 
   test "theme_options/0 returns the full theme list" do
@@ -197,6 +197,57 @@ defmodule BashStartpage.Startpage.CommandsTest do
     test ":del deletes a site by shortcut" do
       {:ok, _} = Ash.create(Site, %{name: "ByShortcut", url: "https://sc.com", shortcuts: ["sc"]})
       assert {:ok, %{action: :del}} = Commands.process(":del sc", @settings)
+    end
+
+    test ":add with quoted name containing spaces creates site" do
+      assert {:ok, %{action: :add, site: site}} =
+               Commands.process(~s(:add "My Blog" myblog.com mb), @settings)
+
+      assert site.name == "My Blog"
+      assert site.url == "https://myblog.com"
+      assert site.shortcuts == ["mb"]
+    end
+
+    test ":tag adds tags to a site by name" do
+      {:ok, _} = Ash.create(Site, %{name: "GitHub", url: "https://github.com"})
+
+      assert {:ok, %{action: :tag, site: updated}} =
+               Commands.process(":tag GitHub dev oss", @settings)
+
+      assert "dev" in updated.tags
+      assert "oss" in updated.tags
+    end
+
+    test ":tag adds tags to a site by shortcut" do
+      {:ok, _} = Ash.create(Site, %{name: "GitHub", url: "https://github.com", shortcuts: ["gh"]})
+
+      assert {:ok, %{action: :tag, site: updated}} =
+               Commands.process(":tag gh dev", @settings)
+
+      assert "dev" in updated.tags
+    end
+
+    test ":tag merges with existing tags" do
+      {:ok, _} = Ash.create(Site, %{name: "GitHub", url: "https://github.com", tags: ["existing"]})
+
+      assert {:ok, %{action: :tag, site: updated}} =
+               Commands.process(":tag GitHub new", @settings)
+
+      assert "existing" in updated.tags
+      assert "new" in updated.tags
+    end
+
+    test ":tag returns error when site not found" do
+      assert {:error, _} = Commands.process(":tag nonexistent dev", @settings)
+    end
+
+    test ":tag returns error when called without tags" do
+      {:ok, _} = Ash.create(Site, %{name: "GitHub", url: "https://github.com"})
+      assert {:error, _} = Commands.process(":tag GitHub", @settings)
+    end
+
+    test ":tag returns error when called without arguments" do
+      assert {:error, _} = Commands.process(":tag", @settings)
     end
   end
 

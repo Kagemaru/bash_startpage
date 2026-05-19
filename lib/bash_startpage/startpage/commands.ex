@@ -3,7 +3,7 @@ defmodule BashStartpage.Startpage.Commands do
 
   alias BashStartpage.Startpage.{Site, Settings}
 
-  @available_commands ["add", "del", "theme", "export", "help", "changelog"]
+  @available_commands ["add", "del", "tag", "theme", "export", "help", "changelog"]
   @theme_options ["mocha", "tokyo", "matrix", "light"]
 
   def available_commands, do: @available_commands
@@ -78,12 +78,19 @@ defmodule BashStartpage.Startpage.Commands do
     trimmed = String.trim(input)
 
     if String.starts_with?(trimmed, ":") do
-      parts = trimmed |> String.slice(1..-1//1) |> String.trim() |> String.split(~r/\s+/)
+      parts = trimmed |> String.slice(1..-1//1) |> String.trim() |> split_parts()
       cmd = parts |> hd() |> String.downcase()
       execute_command(cmd, parts, settings)
     else
       {:ok, %{action: :none}}
     end
+  end
+
+  defp split_parts(input) do
+    ~r/"[^"]*"|\S+/
+    |> Regex.scan(input)
+    |> List.flatten()
+    |> Enum.map(&String.trim(&1, "\""))
   end
 
   defp execute_command("help", _parts, _settings), do: {:ok, %{action: :help}}
@@ -119,7 +126,7 @@ defmodule BashStartpage.Startpage.Commands do
   defp execute_command("add", _, _settings), do: {:error, "Usage: :add name url [shortcut]"}
 
   defp execute_command("del", [_, identifier | _], _settings) when identifier != "" do
-    id = String.downcase(identifier)
+    id = identifier |> String.downcase() |> String.trim_leading("!")
     case Ash.read(Site) do
       {:ok, sites} ->
         target = Enum.find(sites, fn s ->
@@ -141,6 +148,35 @@ defmodule BashStartpage.Startpage.Commands do
   end
 
   defp execute_command("del", _, _settings), do: {:error, "Usage: :del name_or_shortcut"}
+
+  defp execute_command("tag", [_, identifier | tags], _settings)
+       when identifier != "" and tags != [] do
+    id = identifier |> String.downcase() |> String.trim_leading("!")
+
+    case Ash.read(Site) do
+      {:ok, sites} ->
+        target = Enum.find(sites, fn s ->
+          String.downcase(s.name) == id or Enum.member?(s.shortcuts, id)
+        end)
+
+        if target do
+          new_tags = Enum.uniq(target.tags ++ tags)
+
+          case Ash.update(target, %{tags: new_tags}) do
+            {:ok, updated} -> {:ok, %{action: :tag, site: updated}}
+            {:error, reason} -> {:error, reason}
+          end
+        else
+          {:error, "Site not found: #{identifier}"}
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp execute_command("tag", _, _settings),
+    do: {:error, "Usage: :tag name_or_shortcut tag1 [tag2 ...]"}
 
   defp execute_command(_cmd, _parts, _settings), do: {:ok, %{action: :none}}
 

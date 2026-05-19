@@ -263,4 +263,132 @@ defmodule BashStartpageWeb.StartpageLiveTest do
     assert html1 =~ ~r/\d{2}:\d{2}:\d{2}/
     assert html2 =~ ~r/\d{2}:\d{2}:\d{2}/
   end
+
+  test ":tag command adds tags to an existing site", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/")
+    render_hook(view, "query_changed", %{query: ":tag GitHub newtag"})
+    html = render_hook(view, "keydown", %{key: "Enter"})
+    assert html =~ "newtag"
+  end
+
+  test ":add with quoted name creates site", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/")
+    render_hook(view, "query_changed", %{query: ~s(:add "My Site" mysite.com ms)})
+    html = render_hook(view, "keydown", %{key: "Enter"})
+    assert html =~ "My Site"
+  end
+
+  describe "inline add" do
+    test "start_add shows the new-site form", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+      html = render_hook(view, "start_add", %{})
+      assert html =~ "new-site-form"
+    end
+
+    test "cancel_add hides the new-site form", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+      render_hook(view, "start_add", %{})
+      html = render_hook(view, "cancel_add", %{})
+      refute html =~ "new-site-form"
+    end
+
+    test "save_new creates and displays the new site", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+      render_hook(view, "start_add", %{})
+      html = render_hook(view, "save_new", %{
+        "name" => "NewSite",
+        "url" => "https://new.example.com",
+        "shortcut" => "ns",
+        "tags" => "dev"
+      })
+      assert html =~ "NewSite"
+    end
+
+    test "save_new prepends https:// when URL has no scheme", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+      render_hook(view, "start_add", %{})
+      render_hook(view, "save_new", %{
+        "name" => "NoScheme",
+        "url" => "noscheme.com",
+        "shortcut" => "",
+        "tags" => ""
+      })
+      {:ok, sites} = Ash.read(Site)
+      site = Enum.find(sites, &(&1.name == "NoScheme"))
+      assert site.url == "https://noscheme.com"
+    end
+
+    test "save_new with empty name dismisses form without creating site", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+      render_hook(view, "start_add", %{})
+      html = render_hook(view, "save_new", %{"name" => "", "url" => "https://x.com", "shortcut" => "", "tags" => ""})
+      refute html =~ "new-site-form"
+      {:ok, sites} = Ash.read(Site)
+      refute Enum.any?(sites, &(&1.url == "https://x.com"))
+    end
+  end
+
+  describe "inline edit" do
+    test "start_edit shows the edit form for a site", %{conn: conn} do
+      {:ok, sites} = Ash.read(Site)
+      site = hd(sites)
+      {:ok, view, _html} = live(conn, "/")
+      html = render_hook(view, "start_edit", %{"id" => to_string(site.id)})
+      assert html =~ "edit-#{site.id}"
+    end
+
+    test "cancel_edit hides the edit form", %{conn: conn} do
+      {:ok, sites} = Ash.read(Site)
+      site = hd(sites)
+      {:ok, view, _html} = live(conn, "/")
+      render_hook(view, "start_edit", %{"id" => to_string(site.id)})
+      html = render_hook(view, "cancel_edit", %{})
+      refute html =~ "edit-#{site.id}"
+    end
+
+    test "save_edit updates the site name", %{conn: conn} do
+      {:ok, sites} = Ash.read(Site)
+      site = hd(sites)
+      {:ok, view, _html} = live(conn, "/")
+      render_hook(view, "start_edit", %{"id" => to_string(site.id)})
+      html = render_hook(view, "save_edit", %{
+        "site_id" => to_string(site.id),
+        "name" => "Renamed",
+        "url" => site.url,
+        "shortcut" => "",
+        "tags" => ""
+      })
+      assert html =~ "Renamed"
+    end
+
+    test "save_edit updates shortcut and tags", %{conn: conn} do
+      {:ok, sites} = Ash.read(Site)
+      site = hd(sites)
+      {:ok, view, _html} = live(conn, "/")
+      render_hook(view, "start_edit", %{"id" => to_string(site.id)})
+      render_hook(view, "save_edit", %{
+        "site_id" => to_string(site.id),
+        "name" => site.name,
+        "url" => site.url,
+        "shortcut" => "newkey",
+        "tags" => "foo bar"
+      })
+      {:ok, updated} = Ash.get(Site, site.id)
+      assert updated.shortcuts == ["newkey"]
+      assert "foo" in updated.tags
+      assert "bar" in updated.tags
+    end
+
+    test "save_edit with unknown id is a no-op", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+      html = render_hook(view, "save_edit", %{
+        "site_id" => Ecto.UUID.generate(),
+        "name" => "Ghost",
+        "url" => "https://ghost.com",
+        "shortcut" => "",
+        "tags" => ""
+      })
+      refute html =~ "Ghost"
+    end
+  end
 end

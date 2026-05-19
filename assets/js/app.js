@@ -17,7 +17,7 @@
 // To load it, simply add a second `<link>` to your `root.html.heex` file.
 // Include phoenix_html to handle method=PUT/DELETE in forms and buttons.
 import "phoenix_html";
-import { StartpageInput, StartpageTooltip } from "./startpage_hooks";
+import { StartpageInput, StartpageTooltip, InlineEdit } from "./startpage_hooks";
 // Establish Phoenix Socket and LiveView configuration.
 import { Socket } from "phoenix";
 import { LiveSocket } from "phoenix_live_view";
@@ -37,6 +37,7 @@ const liveSocket = new LiveSocket("/live", Socket, {
     ...MishkaComponents,
     StartpageInput,
     StartpageTooltip,
+    InlineEdit,
   },
 });
 // Show progress bar on live navigation and form submits

@@ -2,6 +2,12 @@ export const StartpageInput = {
   mounted() {
     this.el.focus();
 
+    this.handleEvent("clear_input", () => {
+      this.el.value = "";
+      this.el.focus();
+    });
+
+
     this._keyHandler = (e) => {
       const key = e.key;
       if (["ArrowUp", "ArrowDown", "Tab"].includes(key)) {
@@ -25,15 +31,34 @@ export const StartpageInput = {
   },
 
   updated() {
-    // Restore focus and move cursor to end after LiveView patches the DOM
-    const val = this.el.value;
+    const serverVal = this.el.getAttribute("value") ?? "";
+    this.el.value = serverVal;
     this.el.focus();
-    this.el.setSelectionRange(val.length, val.length);
+    this.el.setSelectionRange(serverVal.length, serverVal.length);
   },
 
   destroyed() {
     this.el.removeEventListener("keydown", this._keyHandler);
     this.el.removeEventListener("input", this._inputHandler);
+  }
+};
+
+export const InlineEdit = {
+  mounted() {
+    const cancelEvent = this.el.dataset.cancelEvent || "cancel_edit";
+    this._keyHandler = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        this.pushEvent(cancelEvent, {});
+      }
+    };
+    this.el.addEventListener("keydown", this._keyHandler);
+    const first = this.el.querySelector("input[type='text']");
+    if (first) first.focus();
+  },
+  destroyed() {
+    this.el.removeEventListener("keydown", this._keyHandler);
   }
 };
 

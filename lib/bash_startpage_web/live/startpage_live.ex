@@ -49,6 +49,8 @@ defmodule BashStartpageWeb.StartpageLive do
       |> assign(:selected_index, 0)
       |> assign(:show_help, false)
       |> assign(:show_changelog, false)
+      |> assign(:editing_id, nil)
+      |> assign(:adding, false)
       |> assign(:tooltip, %{visible: false, text: "", x: 0, y: 0})
       |> assign(:time, current_time(settings))
       |> assign_async(:weather, fn -> fetch_weather(req_options) end)
@@ -142,6 +144,7 @@ defmodule BashStartpageWeb.StartpageLive do
     query = socket.assigns.query
     sites = socket.assigns.sites
     filtered = socket.assigns.filtered_sites
+    socket = push_event(socket, "clear_input", %{})
 
     cond do
       String.starts_with?(query, ":") ->
@@ -176,6 +179,7 @@ defmodule BashStartpageWeb.StartpageLive do
   def handle_event("keydown", %{"key" => "Escape"}, socket) do
     {:noreply,
      socket
+     |> push_event("clear_input", %{})
      |> assign(:query, "")
      |> assign(:filtered_sites, socket.assigns.sites)
      |> assign(:suggestions, [])
@@ -184,6 +188,84 @@ defmodule BashStartpageWeb.StartpageLive do
   end
 
   def handle_event("keydown", _params, socket), do: {:noreply, socket}
+
+  def handle_event("start_add", _params, socket) do
+    {:noreply, assign(socket, :adding, true)}
+  end
+
+  def handle_event("cancel_add", _params, socket) do
+    {:noreply, assign(socket, :adding, false)}
+  end
+
+  def handle_event("save_new", params, socket) do
+    name = Map.get(params, "name", "") |> String.trim()
+    url = Map.get(params, "url", "") |> String.trim()
+    shortcut = Map.get(params, "shortcut", "") |> String.trim()
+    tags_str = Map.get(params, "tags", "")
+
+    if name == "" or url == "" do
+      {:noreply, assign(socket, :adding, false)}
+    else
+      shortcuts = if shortcut != "", do: [shortcut], else: []
+      tags = tags_str |> String.split(~r/\s+/) |> Enum.map(&String.trim/1) |> Enum.reject(&(&1 == ""))
+      url = if String.starts_with?(url, "http"), do: url, else: "https://#{url}"
+
+      case Ash.create(Site, %{name: name, url: url, shortcuts: shortcuts, tags: tags}) do
+        {:ok, _} ->
+          {:ok, sites} = Ash.read(Ash.Query.sort(Site, position: :asc))
+          filtered = Commands.filter_sites(sites, socket.assigns.query)
+
+          {:noreply,
+           socket
+           |> assign(:adding, false)
+           |> assign(:sites, sites)
+           |> assign(:filtered_sites, filtered)}
+
+        {:error, _} ->
+          {:noreply, assign(socket, :adding, false)}
+      end
+    end
+  end
+
+  def handle_event("start_edit", %{"id" => id}, socket) do
+    {:noreply, assign(socket, :editing_id, id)}
+  end
+
+  def handle_event("cancel_edit", _params, socket) do
+    {:noreply, assign(socket, :editing_id, nil)}
+  end
+
+  def handle_event("save_edit", %{"site_id" => id} = params, socket) do
+    site = Enum.find(socket.assigns.sites, &(to_string(&1.id) == id))
+
+    if site do
+      name = Map.get(params, "name", site.name)
+      url = Map.get(params, "url", site.url)
+      shortcut = Map.get(params, "shortcut", "") |> String.trim()
+      tags_str = Map.get(params, "tags", "")
+
+      shortcuts = if shortcut != "", do: [shortcut], else: []
+      tags = tags_str |> String.split(~r/\s+/) |> Enum.map(&String.trim/1) |> Enum.reject(&(&1 == ""))
+      url = if String.starts_with?(url, "http"), do: url, else: "https://#{url}"
+
+      case Ash.update(site, %{name: name, url: url, shortcuts: shortcuts, tags: tags}) do
+        {:ok, _} ->
+          {:ok, sites} = Ash.read(Ash.Query.sort(Site, position: :asc))
+          filtered = Commands.filter_sites(sites, socket.assigns.query)
+
+          {:noreply,
+           socket
+           |> assign(:editing_id, nil)
+           |> assign(:sites, sites)
+           |> assign(:filtered_sites, filtered)}
+
+        {:error, _} ->
+          {:noreply, assign(socket, :editing_id, nil)}
+      end
+    else
+      {:noreply, assign(socket, :editing_id, nil)}
+    end
+  end
 
   def handle_event("show_tooltip", %{"url" => url, "x" => x, "y" => y}, socket) do
     {:noreply, assign(socket, :tooltip, %{visible: true, text: url, x: x, y: y + 20})}
@@ -246,11 +328,23 @@ defmodule BashStartpageWeb.StartpageLive do
          |> assign(:sites, sites)
          |> assign(:filtered_sites, sites)}
 
+      {:ok, %{action: :tag}} ->
+        {:ok, sites} = Ash.read(Ash.Query.sort(Site, position: :asc))
+
+        {:noreply,
+         socket
+         |> assign(:query, "")
+         |> assign(:sites, sites)
+         |> assign(:filtered_sites, sites)}
+
       {:ok, %{action: :none}} ->
         {:noreply, assign(socket, :query, "")}
 
       {:error, _reason} ->
-        {:noreply, assign(socket, :query, "")}
+        {:noreply,
+         socket
+         |> assign(:query, "")
+         |> assign(:filtered_sites, socket.assigns.sites)}
     end
   end
 
@@ -314,8 +408,15 @@ defmodule BashStartpageWeb.StartpageLive do
         <div class="sp-card rounded-2xl p-6 shadow-2xl">
           <%!-- Header bar --%>
           <div class="mb-6 flex items-center justify-between border-b pb-4" style="border-color: var(--sp-card-border)">
-            <div class="text-[10px] tracking-widest uppercase sp-text-muted">
-              # Dashboard | {@theme}
+            <div class="flex items-center gap-3">
+              <div class="text-[10px] tracking-widest uppercase sp-text-muted">
+                # Dashboard | {@theme}
+              </div>
+              <button
+                phx-click="start_add"
+                class="sp-text-accent text-xs font-bold leading-none opacity-60 hover:opacity-100 transition-opacity"
+                title="Add site"
+              >+</button>
             </div>
             <div class="flex gap-4 text-xs font-bold sp-text-accent">
               <.async_result :let={weather} assign={@weather}>
@@ -340,6 +441,8 @@ defmodule BashStartpageWeb.StartpageLive do
                 <.site_list
                   sites={@filtered_sites}
                   favicon_url={@favicon_url}
+                  editing_id={@editing_id}
+                  adding={@adding}
                 />
               <% end %>
             <% end %>
@@ -348,7 +451,7 @@ defmodule BashStartpageWeb.StartpageLive do
           <%!-- Command input with suggestions above it --%>
           <div class="relative">
             <.suggestions_dropdown suggestions={@suggestions} selected_index={@selected_index} query={@query} />
-            <.command_input query={@query} />
+            <.command_input query={@query} command_hint={command_hint(@query)} />
           </div>
         </div>
       </div>
@@ -394,6 +497,8 @@ defmodule BashStartpageWeb.StartpageLive do
         <span class="sp-text-muted">name url [shortcut]</span>
         <span class="sp-text-shortcut">:del</span>
         <span class="sp-text-muted">name_or_shortcut</span>
+        <span class="sp-text-shortcut">:tag</span>
+        <span class="sp-text-muted">name_or_shortcut tag1 [tag2 ...]</span>
         <span class="sp-text-shortcut">:theme</span>
         <span class="sp-text-muted">mocha / tokyo / matrix / light</span>
         <span class="sp-text-shortcut">:export</span>
@@ -436,33 +541,153 @@ defmodule BashStartpageWeb.StartpageLive do
 
   defp site_list(assigns) do
     ~H"""
-    <%= for site <- @sites do %>
-      <a
-        href={site.url}
-        target="_self"
-        class="group flex w-full items-center gap-4 rounded border border-transparent p-2 transition-all hover:border-white/10 hover:bg-white/5 no-underline"
-        phx-hook="StartpageTooltip"
-        data-tooltip-url={site.url}
-        id={"site-#{site.id}"}
+    <%= if @adding do %>
+      <form
+        phx-submit="save_new"
+        phx-update="ignore"
+        class="flex flex-col gap-2 rounded border p-2"
+        style="border-color: var(--sp-card-border); background: rgba(255,255,255,0.03);"
+        phx-hook="InlineEdit"
+        data-cancel-event="cancel_add"
+        id="new-site-form"
       >
-        <span class="w-16 text-left text-xs font-bold sp-text-shortcut flex-shrink-0">
-          {if site.shortcuts != [], do: "!#{hd(site.shortcuts)}", else: ""}
-        </span>
-        <img
-          src={@favicon_url.(site.url)}
-          alt=""
-          class="w-4 h-4 rounded-sm opacity-80 flex-shrink-0"
-        />
-        <span class="flex-grow text-left text-sm font-semibold sp-text-site-name">{site.name}</span>
-        <div class="flex gap-2 text-right flex-shrink-0">
-          <%= for tag <- site.tags do %>
-            <span class="rounded border px-2 py-0.5 text-[9px] font-bold sp-text-tag"
-                  style="border-color: rgba(var(--sp-tag-color), 0.2)">
-              #{tag}
-            </span>
-          <% end %>
+        <div class="flex items-center gap-2">
+          <span class="w-4 h-4 flex-shrink-0 opacity-30 text-xs flex items-center justify-center">?</span>
+          <input
+            type="text"
+            name="name"
+            class="flex-grow bg-transparent border-b text-sm font-semibold sp-text-site-name outline-none px-1"
+            style="border-color: rgba(255,255,255,0.15);"
+            placeholder="Name"
+          />
+          <input
+            type="text"
+            name="shortcut"
+            class="w-24 bg-transparent border-b text-xs sp-text-shortcut outline-none px-1"
+            style="border-color: rgba(255,255,255,0.15);"
+            placeholder="shortcut"
+          />
         </div>
-      </a>
+        <div class="flex items-center gap-2">
+          <span class="w-4 flex-shrink-0"></span>
+          <input
+            type="text"
+            name="url"
+            class="flex-grow bg-transparent border-b text-xs sp-text-muted outline-none px-1"
+            style="border-color: rgba(255,255,255,0.15);"
+            placeholder="URL"
+          />
+          <input
+            type="text"
+            name="tags"
+            class="w-36 bg-transparent border-b text-xs sp-text-tag outline-none px-1"
+            style="border-color: rgba(255,255,255,0.15);"
+            placeholder="tags (space-separated)"
+          />
+          <div class="flex gap-1 flex-shrink-0 ml-1">
+            <button type="submit" class="sp-text-accent text-xs font-bold px-2 py-0.5 rounded hover:opacity-70">✓</button>
+            <button type="button" phx-click="cancel_add" class="sp-text-muted text-xs px-2 py-0.5 rounded hover:opacity-70">✗</button>
+          </div>
+        </div>
+      </form>
+    <% end %>
+    <%= for site <- @sites do %>
+      <%= if @editing_id == to_string(site.id) do %>
+        <form
+          phx-submit="save_edit"
+          phx-update="ignore"
+          class="flex flex-col gap-2 rounded border p-2"
+          style="border-color: var(--sp-card-border); background: rgba(255,255,255,0.03);"
+          phx-hook="InlineEdit"
+          id={"edit-#{site.id}"}
+        >
+          <input type="hidden" name="site_id" value={site.id} />
+          <div class="flex items-center gap-2">
+            <img src={@favicon_url.(site.url)} alt="" class="w-4 h-4 rounded-sm opacity-80 flex-shrink-0" />
+            <input
+              type="text"
+              name="name"
+              value={site.name}
+              class="flex-grow bg-transparent border-b text-sm font-semibold sp-text-site-name outline-none px-1"
+              style="border-color: rgba(255,255,255,0.15);"
+              placeholder="Name"
+            />
+            <input
+              type="text"
+              name="shortcut"
+              value={if site.shortcuts != [], do: hd(site.shortcuts), else: ""}
+              class="w-24 bg-transparent border-b text-xs sp-text-shortcut outline-none px-1"
+              style="border-color: rgba(255,255,255,0.15);"
+              placeholder="shortcut"
+            />
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="w-4 flex-shrink-0"></span>
+            <input
+              type="text"
+              name="url"
+              value={site.url}
+              class="flex-grow bg-transparent border-b text-xs sp-text-muted outline-none px-1"
+              style="border-color: rgba(255,255,255,0.15);"
+              placeholder="URL"
+            />
+            <input
+              type="text"
+              name="tags"
+              value={Enum.join(site.tags, " ")}
+              class="w-36 bg-transparent border-b text-xs sp-text-tag outline-none px-1"
+              style="border-color: rgba(255,255,255,0.15);"
+              placeholder="tags (space-separated)"
+            />
+            <div class="flex gap-1 flex-shrink-0 ml-1">
+              <button type="submit" class="sp-text-accent text-xs font-bold px-2 py-0.5 rounded hover:opacity-70">✓</button>
+              <button type="button" phx-click="cancel_edit" class="sp-text-muted text-xs px-2 py-0.5 rounded hover:opacity-70">✗</button>
+            </div>
+          </div>
+        </form>
+      <% else %>
+        <div
+          class="group flex w-full items-center gap-4 rounded border border-transparent p-2 transition-all hover:border-white/10 hover:bg-white/5"
+          id={"site-#{site.id}"}
+        >
+          <span
+            class="w-16 text-left text-xs font-bold sp-text-shortcut flex-shrink-0 cursor-pointer hover:opacity-70"
+            phx-click="start_edit"
+            phx-value-id={site.id}
+          >
+            {if site.shortcuts != [], do: "!#{hd(site.shortcuts)}", else: "–"}
+          </span>
+          <a
+            href={site.url}
+            target="_self"
+            class="flex-shrink-0 no-underline"
+            phx-hook="StartpageTooltip"
+            data-tooltip-url={site.url}
+            id={"favicon-#{site.id}"}
+          >
+            <img src={@favicon_url.(site.url)} alt="" class="w-4 h-4 rounded-sm opacity-80" />
+          </a>
+          <span
+            class="flex-grow text-left text-sm font-semibold sp-text-site-name cursor-pointer hover:opacity-70"
+            phx-click="start_edit"
+            phx-value-id={site.id}
+          >
+            {site.name}
+          </span>
+          <div
+            class="flex gap-2 text-right flex-shrink-0 cursor-pointer min-w-8"
+            phx-click="start_edit"
+            phx-value-id={site.id}
+          >
+            <%= for tag <- site.tags do %>
+              <span class="rounded border px-2 py-0.5 text-[9px] font-bold sp-text-tag"
+                    style="border-color: rgba(var(--sp-tag-color), 0.2)">
+                #{tag}
+              </span>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
     <% end %>
     """
   end
@@ -471,20 +696,39 @@ defmodule BashStartpageWeb.StartpageLive do
     ~H"""
     <div class="flex items-center gap-2">
       <span class="sp-text-shortcut font-bold text-lg flex-shrink-0">&gt;</span>
-      <input
-        type="text"
-        id="startpage-input"
-        name="query"
-        value={@query}
-        phx-hook="StartpageInput"
-        autocomplete="off"
-        spellcheck="false"
-        class="flex-grow bg-transparent border-none outline-none text-sm sp-text-secondary placeholder-opacity-40"
-        style="font-family: inherit; caret-color: var(--sp-text-primary);"
-        placeholder="search or type :command..."
-      />
+      <div class="flex-grow min-w-0">
+        <input
+          type="text"
+          id="startpage-input"
+          name="query"
+          value={@query}
+          phx-hook="StartpageInput"
+          autocomplete="off"
+          spellcheck="false"
+          class="w-full bg-transparent border-none outline-none text-sm sp-text-secondary placeholder-opacity-40"
+          style="font-family: inherit; caret-color: var(--sp-text-primary);"
+          placeholder="search or type :command..."
+        />
+        <%= if @command_hint do %>
+          <div class="text-[10px] sp-text-muted opacity-40 pointer-events-none leading-tight">
+            {@command_hint}
+          </div>
+        <% end %>
+      </div>
     </div>
     """
+  end
+
+  defp command_hint(query) do
+    q = String.trim(query) |> String.downcase()
+
+    cond do
+      String.starts_with?(q, ":add") -> ":add name url [shortcut]"
+      String.starts_with?(q, ":del") -> ":del name_or_shortcut"
+      String.starts_with?(q, ":tag") -> ":tag name_or_shortcut tag1 [tag2 ...]"
+      String.starts_with?(q, ":theme") -> ":theme mocha | tokyo | matrix | light"
+      true -> nil
+    end
   end
 
   defp prefix(query) do
